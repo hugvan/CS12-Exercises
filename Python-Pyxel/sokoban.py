@@ -1,6 +1,7 @@
 import pyxel as pxl
 from pyxel import Tilemap
-from enum import Enum
+from enum import Enum, IntEnum
+from worldtiles import WorldTiles
 
 Point = tuple[int, int]
 MoveData = tuple[Point, Point] #Initial, Final
@@ -22,8 +23,16 @@ class ObjectCoord(Point, Enum):
     FLAG = (2,0)
     WALL = (2,5)
 
-GROUNDHEIGHT = {ObjectCoord.FLAG, ObjectCoord.BUTTON}
-BODYHEIGHT = {ObjectCoord.WALL, ObjectCoord.BOX}
+class Layer(IntEnum):
+    FLOOR = 0
+    GROUND = 1
+    BODY = 2
+
+OBJS_LAYERS: dict[Point, int] = {ObjectCoord.PLAYER: Layer.BODY, 
+                                 ObjectCoord.BOX: Layer.BODY, 
+                                 ObjectCoord.WALL: Layer.BODY, 
+                                 ObjectCoord.BUTTON: Layer.GROUND, 
+                                 ObjectCoord.FLAG: Layer.GROUND}
 IMMOVABLE = {ObjectCoord.WALL}
 PUSHABLE = {ObjectCoord.BOX}
 
@@ -40,9 +49,12 @@ def mul(a: Point, s: int) -> Point:
 class Sokoban():
     def __init__(self, level_num: int) -> None:
         self.moves: list[list[MoveData]] = []
-        
-        self.body_tiles: list[list[Point]] = []
-        self.ground_tiles: list[list[Point]] = []
+        self.tiles: WorldTiles = WorldTiles((LEVEL_SIZE, LEVEL_SIZE), 
+                                                  3,
+                                                  ObjectCoord.NONE,
+                                                  OBJS_LAYERS,
+                                                  dict()
+                                                  )
         self.player_loc: Point
 
         pxl.init(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -53,43 +65,17 @@ class Sokoban():
 
     def init_level(self, lvl: int) -> None:
         tilemap = pxl.tilemaps[0]
-        for x_idx in range(LEVEL_SIZE):
-            body_row: list[Point] = []
-            ground_row: list[Point] = []
-            for y_idx in range(LEVEL_SIZE):
-                obj = tilemap.pget(x_idx + lvl * LEVEL_SIZE, y_idx) # type: ignore
-                # Player is not in tiles
-                if obj == ObjectCoord.PLAYER:
-                    self.player_loc = (x_idx, y_idx)
-                    body_row.append(ObjectCoord.NONE)
-                    ground_row.append(ObjectCoord.NONE)
-                    continue
-                
-                body_row.append(obj if obj in BODYHEIGHT else ObjectCoord.NONE) 
-                ground_row.append(obj if obj in GROUNDHEIGHT else ObjectCoord.NONE) 
-            self.body_tiles.append(body_row)
-            self.ground_tiles.append(ground_row)
-
-    def get_tile(self, coord: Point, height: int) -> Point:
-        match height:
-            case 0: return self.ground_tiles[coord[0]][coord[1]]
-            case 1: return self.body_tiles[coord[0]][coord[1]]
-            case _: assert False  
-
-    def set_tile(self, coord: Point, obj: Point, height: int):
-        match height:
-            case 0: self.ground_tiles[coord[0]][coord[1]] = obj
-            case 1: self.body_tiles[coord[0]][coord[1]] = obj
-            case _: assert False
-        
+        self.tiles.set_area((0,0), tilemap, (LEVEL_SIZE*lvl,0), (LEVEL_SIZE*(lvl+1),LEVEL_SIZE))
+        self.player_loc = self.tiles.find_obj(ObjectCoord.PLAYER)
+        self.tiles.del_obj(self.player_loc, Layer.BODY) #player should no longer appear in worldtiles
 
     def move(self, vector: Point) -> None:
         new_loc = add(self.player_loc, vector)
         
-        if self.get_tile(new_loc, 1) in IMMOVABLE:
+        if self.tiles.get_obj(new_loc, Layer.BODY) in IMMOVABLE:
             self.curr_moveset.append((self.player_loc, self.player_loc))
             return
-        elif self.get_tile(new_loc, 1) in PUSHABLE and not self.push(new_loc, vector):
+        elif self.tiles.get_obj(new_loc, Layer.BODY) in PUSHABLE and not self.push(new_loc, vector):
             self.curr_moveset.append((self.player_loc, self.player_loc))
             return
         
@@ -98,14 +84,14 @@ class Sokoban():
 
     def push(self, box_loc: Point, vector: Point) -> bool:
         new_loc = add(box_loc, vector)
-        if self.get_tile(new_loc, 1) in IMMOVABLE:
+        if self.tiles.get_obj(new_loc, Layer.BODY) in IMMOVABLE:
             return False
-        elif self.get_tile(new_loc, 1) in PUSHABLE and not self.push(new_loc, vector):
+        elif self.tiles.get_obj(new_loc, Layer.BODY) in PUSHABLE and not self.push(new_loc, vector):
             return False
         
         self.curr_moveset.append((box_loc, new_loc))
-        self.set_tile(box_loc, ObjectCoord.NONE, 1)
-        self.set_tile(new_loc, ObjectCoord.BOX, 1)
+        self.tiles.del_obj(box_loc, Layer.BODY)
+        self.tiles.set_obj(new_loc, ObjectCoord.BOX)
         return True
 
     def undo(self):
@@ -117,8 +103,8 @@ class Sokoban():
             if final == self.player_loc:
                 self.player_loc = initial
                 continue
-            self.set_tile(initial, self.get_tile(final, 1), 1)
-            self.set_tile(final, ObjectCoord.NONE, 1)
+            self.tiles.set_obj(initial, self.tiles.get_obj(final, Layer.BODY))
+            self.tiles.del_obj(final, 2)
 
     def update(self):
         if pxl.btnp(pxl.KEY_Z, hold=10, repeat=3):
@@ -147,7 +133,7 @@ class Sokoban():
         
         for neighbor in CARDINALS.values():
             n = add(coord, neighbor)
-            if self.get_tile(n, 1) != ObjectCoord.WALL:
+            if self.tiles.get_obj(n, Layer.BODY) != ObjectCoord.WALL:
                 furnish = add(ObjectCoord.WALL, neighbor)
                 self.draw_obj(coord, furnish)
         
@@ -157,13 +143,13 @@ class Sokoban():
             n2 = add(coord, nh)
 
             #both are not walls (convex corner)
-            if self.get_tile(n1, 1) != ObjectCoord.WALL and self.get_tile(n2, 1) != ObjectCoord.WALL:
+            if self.tiles.get_obj(n1, Layer.BODY) != ObjectCoord.WALL and self.tiles.get_obj(n2, Layer.BODY) != ObjectCoord.WALL:
                 furnish = add(ObjectCoord.WALL, diagonal)
                 self.draw_obj(coord, furnish)
             #both are walls (concave corner)
-            elif self.get_tile(n1, 1) == ObjectCoord.WALL and self.get_tile(n2, 1) == ObjectCoord.WALL:
+            elif self.tiles.get_obj(n1, Layer.BODY) == ObjectCoord.WALL and self.tiles.get_obj(n2, Layer.BODY) == ObjectCoord.WALL:
                 n3 = add(coord, diagonal)
-                if self.get_tile(n3, 1) == ObjectCoord.WALL:
+                if self.tiles.get_obj(n3, Layer.BODY) == ObjectCoord.WALL:
                     continue
                 furnish = add(ObjectCoord.WALL, mul(diagonal, 2))
                 self.draw_obj(coord, furnish)
@@ -173,10 +159,10 @@ class Sokoban():
         
         for x in range(LEVEL_SIZE):
             for y in range(LEVEL_SIZE):
-                ground_obj = self.get_tile((x,y), 0)
+                ground_obj = self.tiles.get_obj((x,y), Layer.GROUND)
                 self.draw_obj((x,y), ground_obj)
 
-                body_obj = self.get_tile((x,y), 1)
+                body_obj = self.tiles.get_obj((x,y), Layer.BODY)
                 if body_obj == ObjectCoord.WALL:
                     self.draw_wall((x, y))
                     continue
@@ -185,4 +171,4 @@ class Sokoban():
         #draw player
         self.draw_obj(self.player_loc, ObjectCoord.PLAYER)
 
-Sokoban(2)
+Sokoban(0)
