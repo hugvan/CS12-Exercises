@@ -45,15 +45,23 @@ class WorldTiles:
         for layer in layers:
             self.grid[pos[0], pos[1], layer] = 0
     
+    def swap_obj(self, p1: Point, p2: Point, *layers: int):
+        for layer in layers:
+            self.grid[p1[0], p1[1], layer], self.grid[p2[0], p2[1], layer] = self.grid[p2[0], p2[1], layer], self.grid[p1[0], p1[1], layer]
+    
     def set_area(self, tl: Point, tilemap: Tilemap, tmap_tl: Point, tmap_br: Point):
         for x in range(tmap_tl[0], tmap_br[0]):
             for y in range(tmap_tl[1], tmap_br[1]):
                 obj = tilemap.pget(x, y)
                 self.grid[tl[0] + x - tmap_tl[0], tl[1] + y -tmap_tl[1]] = self._arrs[obj]
 
-    def find_obj(self, obj: Object) -> tuple[int, int]:
+    def find_objs(self, obj: Object) -> list[Point]:
         tile = self._arrs[obj]
         id: int = tile[np.where(tile != 0)][0]
 
         coords = np.where(self.grid == id)
-        return (coords[0][0], coords[1][0])
+        ret: list[Point] = []
+        for idx in range(np.size(coords, 1)):
+            ret.append((coords[0][idx], coords[1][idx]))
+        
+        return ret

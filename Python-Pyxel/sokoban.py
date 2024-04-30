@@ -20,9 +20,10 @@ class ObjectCoord(Point, Enum):
     PLAYER = (0,1)
     BOX = (1,0)
     BUTTON = (1,1)
-    FLAG = (2,0)
+    FLAG = (2,1)
     WALL = (2,5)
 
+LAYERS = 3
 class Layer(IntEnum):
     FLOOR = 0
     GROUND = 1
@@ -48,9 +49,10 @@ def mul(a: Point, s: int) -> Point:
 
 class Sokoban():
     def __init__(self, level_num: int) -> None:
+        self.level = level_num
         self.moves: list[list[MoveData]] = []
         self.tiles: WorldTiles = WorldTiles((LEVEL_SIZE, LEVEL_SIZE), 
-                                                  3,
+                                                  LAYERS,
                                                   ObjectCoord.NONE,
                                                   OBJS_LAYERS,
                                                   dict()
@@ -59,15 +61,18 @@ class Sokoban():
 
         pxl.init(SCREEN_WIDTH, SCREEN_HEIGHT)
         pxl.load("SPRITES.pyxres")
-        self.init_level(level_num)
+        self.init_level(self.level)
 
         pxl.run(self.update, self.draw)
 
     def init_level(self, lvl: int) -> None:
         tilemap = pxl.tilemaps[0]
         self.tiles.set_area((0,0), tilemap, (LEVEL_SIZE*lvl,0), (LEVEL_SIZE*(lvl+1),LEVEL_SIZE))
-        self.player_loc = self.tiles.find_obj(ObjectCoord.PLAYER)
+        
+        self.player_loc = self.tiles.find_objs(ObjectCoord.PLAYER)[0]
         self.tiles.del_obj(self.player_loc, Layer.BODY) #player should no longer appear in worldtiles
+
+        self.moves: list[list[MoveData]] = []
 
     def move(self, vector: Point) -> None:
         new_loc = add(self.player_loc, vector)
@@ -90,8 +95,7 @@ class Sokoban():
             return False
         
         self.curr_moveset.append((box_loc, new_loc))
-        self.tiles.del_obj(box_loc, Layer.BODY)
-        self.tiles.set_obj(new_loc, ObjectCoord.BOX)
+        self.tiles.swap_obj(box_loc, new_loc, Layer.BODY)
         return True
 
     def undo(self):
@@ -103,8 +107,24 @@ class Sokoban():
             if final == self.player_loc:
                 self.player_loc = initial
                 continue
-            self.tiles.set_obj(initial, self.tiles.get_obj(final, Layer.BODY))
-            self.tiles.del_obj(final, 2)
+            #TODO: This only works for boxes
+            self.tiles.swap_obj(initial, final, Layer.BODY)
+
+    def check_interact(self):
+        under_player = self.tiles.get_obj(self.player_loc, Layer.GROUND)
+        if under_player == ObjectCoord.FLAG:
+            self.touch_flag()
+        
+
+    def touch_flag(self):
+        btns = self.tiles.find_objs(ObjectCoord.BUTTON)
+        for btn in btns:
+            top = self.tiles.get_obj(btn, Layer.BODY)
+            if top == ObjectCoord.NONE:
+                return
+        self.level += 1
+        self.init_level(self.level)
+        
 
     def update(self):
         if pxl.btnp(pxl.KEY_Z, hold=10, repeat=3):
@@ -124,6 +144,8 @@ class Sokoban():
 
         if self.curr_moveset:
             self.moves.append(self.curr_moveset)
+        
+        self.check_interact()
 
     def draw_obj(self, coord: Point, type: Point):
         pxl.blt(*p(coord), 0, *p(type), *p((1,1)), 0)
