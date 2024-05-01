@@ -34,8 +34,8 @@ class GameState:
     pool_br: Vec2
     simulating: bool
 
-SCREEN_WIDTH = 300
-SCREEN_HEIGHT = 200
+SCREEN_WIDTH = 400
+SCREEN_HEIGHT = 270
 
 class Game:
     def __init__(self) -> None:
@@ -53,6 +53,7 @@ class Game:
         pool_topleft = Vec2(20, 20)
         pool_botright = Vec2(SCREEN_WIDTH, SCREEN_HEIGHT) - pool_topleft
 
+        #self properties are initialized here
         self.game_state: GameState = GameState(cue_ball, [], pool_topleft, pool_botright, False)
         self.stick_power: float = 0.0
 
@@ -79,10 +80,10 @@ class Game:
             ball.velocity *= ball.friction
 
             if not (min_bound.y <= ball.top_y <= ball.bot_y <= max_bound.y):
-                ball.velocity = ball.velocity.reflect("Y")
+                ball.velocity = ball.velocity.reflect("y-axis")
 
             if not (min_bound.x <= ball.left_x <= ball.right_x <= max_bound.x):
-                ball.velocity = ball.velocity.reflect("X")
+                ball.velocity = ball.velocity.reflect("x-axis")
 
             if stop_simulating and abs(ball.velocity) > EPSILON:
                 stop_simulating = False
@@ -92,12 +93,13 @@ class Game:
 
 
     def update(self):
-        if pxl.btn(pxl.MOUSE_BUTTON_LEFT) and self.stick_power < 20:
-            self.stick_power += min(1, 1 * (2/ (self.stick_power + 1)))
+        if not self.game_state.simulating:
+            if pxl.btn(pxl.MOUSE_BUTTON_LEFT) and self.stick_power < 20:
+                self.stick_power += min(1, 1 * (2/ (self.stick_power + 1)))
 
-        if pxl.btnr(pxl.MOUSE_BUTTON_LEFT):
-            self.strike_cue()
-            self.stick_power = 0
+            if pxl.btnr(pxl.MOUSE_BUTTON_LEFT):
+                self.strike_cue()
+                self.stick_power = 0
         
         if self.game_state.simulating:
             self.physics_process()

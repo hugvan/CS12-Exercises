@@ -66,10 +66,14 @@ class Vec2:
     def scale_to(self, magnitude: float = 1) -> Vec2:
         return self * (magnitude / abs(self))
     
-    def reflect(self, type: str) -> Vec2:
-        """Type: flip [X], flip [Y]"""
+    def reflect(self, line: str|Vec2) -> Vec2:
+        """line: [y=0], [x=0]"""
         
-        match type:
-            case "X": return Vec2(-self.x, self.y)
-            case "Y": return Vec2(self.x, -self.y)
-            case _: raise ValueError
+        match line:
+            case "y=0": return Vec2(self.x, -self.y)
+            case "x=0": return Vec2(-self.x, self.y)
+            case Vec2():
+                return 2 * ( self.dot(line) / line.abs2) * line - self
+            case _: 
+                raise ValueError
+
