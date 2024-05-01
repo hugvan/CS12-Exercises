@@ -2,6 +2,7 @@ from geometry import Vec2
 import pyxel as pxl
 from pyxel import Tilemap
 from dataclasses import dataclass
+from functools import cached_property
 
 @dataclass
 class BilliardBall:
@@ -9,6 +10,7 @@ class BilliardBall:
     velocity: Vec2
     friction: float
     radius: float
+    mass: float
     color: int #Based on Pyxel
 
     @property
@@ -35,25 +37,30 @@ class GameState:
     pool_br: Vec2
     simulating: bool
 
+    @cached_property
+    def all_balls(self) -> list[BilliardBall]:
+        return [self.cue_ball, *self.billiard_balls]
+
 
 SCREEN_WIDTH = 400
 SCREEN_HEIGHT = 270
 BILLIARD_COLORS: list[int] = [pxl.COLOR_YELLOW, pxl.COLOR_DARK_BLUE, pxl.COLOR_RED, pxl.COLOR_PURPLE, 
                               pxl.COLOR_ORANGE, pxl.COLOR_LIME, pxl.COLOR_LIGHT_BLUE, pxl.COLOR_BLACK,]
-BILLIARD_ROWS: int = 1
+BILLIARD_ROWS: int = 3
 TABLE_FRICTION = 0.98
 RADIUS = 10.0
+MASS = 10.0
 CUE_START: Vec2 = Vec2(SCREEN_WIDTH//4, SCREEN_HEIGHT//2) 
 
 class Game:
     def __init__(self) -> None:
         
         self.init_gamestate()
-        pxl.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="One Billiard")
+        pxl.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="Billiards")
         pxl.run(self.update, self.draw)
 
     def init_gamestate(self):
-        cue_ball: BilliardBall = BilliardBall(CUE_START, Vec2(), TABLE_FRICTION, RADIUS, pxl.COLOR_WHITE)
+        cue_ball: BilliardBall = BilliardBall(CUE_START, Vec2(), TABLE_FRICTION, RADIUS, MASS, pxl.COLOR_WHITE)
         pool_topleft = Vec2(20, 20)
         pool_botright = Vec2(SCREEN_WIDTH, SCREEN_HEIGHT) - pool_topleft
 
@@ -68,7 +75,7 @@ class Game:
 
         billiard_balls: list[BilliardBall] = []
         for num, ball_start in enumerate(ball_starts):
-            ball: BilliardBall = BilliardBall(ball_start, Vec2(), TABLE_FRICTION, RADIUS, BILLIARD_COLORS[num % 8])
+            ball: BilliardBall = BilliardBall(ball_start, Vec2(), TABLE_FRICTION, RADIUS, MASS, BILLIARD_COLORS[num % 8])
             billiard_balls.append(ball)
 
         #self properties are initialized here
@@ -93,16 +100,39 @@ class Game:
         max_bound = self.game_state.pool_br
         stop_simulating = True
 
-        for ball in [self.game_state.cue_ball]:
+        for idx, ball in enumerate(self.game_state.all_balls):
             ball.position += ball.velocity
             ball.velocity *= ball.friction
 
+            #Wall Collisions
             if not (min_bound.y <= ball.top_y <= ball.bot_y <= max_bound.y):
+                ball.position += Vec2(0, min_bound.y - ball.top_y) if ball.top_y < min_bound.y else Vec2(0, max_bound.y - ball.bot_y)
                 ball.velocity = ball.velocity.reflect("y=0")
 
             if not (min_bound.x <= ball.left_x <= ball.right_x <= max_bound.x):
+                ball.position += Vec2(min_bound.x - ball.left_x, 0) if ball.left_x < min_bound.x else Vec2(max_bound.x - ball.right_x, 0)
                 ball.velocity = ball.velocity.reflect("x=0")
 
+            #Ball Collisions
+            for other_ball in self.game_state.all_balls:
+                if ball is other_ball:
+                    continue
+                
+                ball_delta = other_ball.position - ball.position
+                overlap = other_ball.radius + ball.radius - abs(ball_delta) 
+                if overlap >= 0:                 
+                    #separate balls before calculating new velocities
+                    ball.position -= ball_delta.scale_to(overlap)
+
+                    tangent = ball_delta.neg_transpose()
+                    old_bv = ball.velocity
+                    ball.velocity = ball.velocity.reflect(tangent) * 0.7
+                    other_vx = (ball.mass/other_ball.mass)*(old_bv.x - ball.velocity.x) + other_ball.velocity.x
+                    other_vy = (ball.mass/other_ball.mass)*(old_bv.y - ball.velocity.y) + other_ball.velocity.y
+                    other_ball.velocity = Vec2(other_vx, other_vy) * 0.7
+
+
+            #Stop Physics if nothing is moving
             if stop_simulating and abs(ball.velocity) > EPSILON:
                 stop_simulating = False
         
@@ -151,15 +181,15 @@ class Game:
         w_and_h = game_state.pool_br - game_state.pool_tl
         pxl.rect(*game_state.pool_tl.u(), *w_and_h.u(), pxl.COLOR_GREEN )
 
-        if not game_state.simulating:
-            self.draw_stick(self.stick_power)
-
         #draw billiard balls
         for ball in game_state.billiard_balls:
-            pxl.circ(*ball.position.u(), ball.radius, ball.color )
+            pxl.circ(*ball.position.u(), ball.radius, ball.color)
 
         #draw cue ball
         pxl.circ(*cue_ball.position.u(), cue_ball.radius, cue_ball.color)
+
+        if not game_state.simulating:
+            self.draw_stick(self.stick_power)
 
         
 
