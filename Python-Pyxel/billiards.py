@@ -1,5 +1,6 @@
 from geometry import Vec2
 import pyxel as pxl
+from pyxel import Tilemap
 from dataclasses import dataclass
 
 @dataclass
@@ -34,8 +35,15 @@ class GameState:
     pool_br: Vec2
     simulating: bool
 
+
 SCREEN_WIDTH = 400
 SCREEN_HEIGHT = 270
+BILLIARD_COLORS: list[int] = [pxl.COLOR_YELLOW, pxl.COLOR_DARK_BLUE, pxl.COLOR_RED, pxl.COLOR_PURPLE, 
+                              pxl.COLOR_ORANGE, pxl.COLOR_GREEN, pxl.COLOR_LIGHT_BLUE, pxl.COLOR_BLACK,]
+
+TABLE_FRICTION = 0.98
+RADIUS = 10.0
+CUE_START: Vec2 = Vec2(SCREEN_WIDTH//4, SCREEN_HEIGHT//2) 
 
 class Game:
     def __init__(self) -> None:
@@ -45,16 +53,20 @@ class Game:
         pxl.run(self.update, self.draw)
 
     def init_gamestate(self):
-        TABLE_FRICTION = 0.98
-        RADIUS = 10.0
-        start_pos = Vec2(SCREEN_WIDTH//4, SCREEN_HEIGHT//2)
-
-        cue_ball: BilliardBall = BilliardBall(start_pos, Vec2(), TABLE_FRICTION, RADIUS, pxl.COLOR_WHITE)
+        cue_ball: BilliardBall = BilliardBall(CUE_START, Vec2(), TABLE_FRICTION, RADIUS, pxl.COLOR_WHITE)
         pool_topleft = Vec2(20, 20)
         pool_botright = Vec2(SCREEN_WIDTH, SCREEN_HEIGHT) - pool_topleft
 
+        #automatically make ball starting positions
+        ball_starts: list[Vec2] = [CUE_START + Vec2(SCREEN_WIDTH//2,0)]
+
+        billiard_balls: list[BilliardBall] = []
+        for ball_num in range(1):
+            ball: BilliardBall = BilliardBall(ball_starts[ball_num], Vec2(), TABLE_FRICTION, RADIUS, BILLIARD_COLORS[ball_num])
+            billiard_balls.append(ball)
+
         #self properties are initialized here
-        self.game_state: GameState = GameState(cue_ball, [], pool_topleft, pool_botright, False)
+        self.game_state: GameState = GameState(cue_ball, billiard_balls, pool_topleft, pool_botright, False)
         self.stick_power: float = 0.0
 
     def strike_cue(self):
@@ -80,10 +92,10 @@ class Game:
             ball.velocity *= ball.friction
 
             if not (min_bound.y <= ball.top_y <= ball.bot_y <= max_bound.y):
-                ball.velocity = ball.velocity.reflect("y-axis")
+                ball.velocity = ball.velocity.reflect("y=0")
 
             if not (min_bound.x <= ball.left_x <= ball.right_x <= max_bound.x):
-                ball.velocity = ball.velocity.reflect("x-axis")
+                ball.velocity = ball.velocity.reflect("x=0")
 
             if stop_simulating and abs(ball.velocity) > EPSILON:
                 stop_simulating = False
@@ -138,6 +150,10 @@ class Game:
 
         #draw cue ball
         pxl.circ(*cue_ball.position.u(), cue_ball.radius, cue_ball.color)
+
+        #draw billiard balls
+        for ball in game_state.billiard_balls:
+            pxl.circ(*ball.position.u(), ball.radius, ball.color )
 
         
 
