@@ -12,6 +12,7 @@ class BilliardBall:
     radius: float
     mass: float
     color: int #Based on Pyxel
+    label: str = ""
 
     @property
     def top_y(self) -> float:
@@ -44,9 +45,9 @@ class GameState:
 
 SCREEN_WIDTH = 400
 SCREEN_HEIGHT = 270
-BILLIARD_COLORS: list[int] = [pxl.COLOR_YELLOW, pxl.COLOR_DARK_BLUE, pxl.COLOR_RED, pxl.COLOR_PURPLE, 
-                              pxl.COLOR_ORANGE, pxl.COLOR_LIME, pxl.COLOR_LIGHT_BLUE, pxl.COLOR_BLACK,]
-BILLIARD_ROWS: int = 3
+BILLIARD_COLORS: list[int] = [pxl.COLOR_YELLOW, pxl.COLOR_DARK_BLUE, pxl.COLOR_RED, pxl.COLOR_YELLOW, 
+                              pxl.COLOR_DARK_BLUE, pxl.COLOR_RED, pxl.COLOR_YELLOW, pxl.COLOR_BLACK,]
+BILLIARD_ROWS: int = 5
 TABLE_FRICTION = 0.98
 RADIUS = 10.0
 MASS = 10.0
@@ -75,7 +76,7 @@ class Game:
 
         billiard_balls: list[BilliardBall] = []
         for num, ball_start in enumerate(ball_starts):
-            ball: BilliardBall = BilliardBall(ball_start, Vec2(), TABLE_FRICTION, RADIUS, MASS, BILLIARD_COLORS[num % 8])
+            ball: BilliardBall = BilliardBall(ball_start, Vec2(), TABLE_FRICTION, RADIUS, MASS, BILLIARD_COLORS[num % 8], str(num + 1))
             billiard_balls.append(ball)
 
         #self properties are initialized here
@@ -182,8 +183,11 @@ class Game:
         pxl.rect(*game_state.pool_tl.u(), *w_and_h.u(), pxl.COLOR_GREEN )
 
         #draw billiard balls
-        for ball in game_state.billiard_balls:
+        for num, ball in enumerate(game_state.billiard_balls):
             pxl.circ(*ball.position.u(), ball.radius, ball.color)
+            pxl.circ(*ball.position.u(), ball.radius // 2, pxl.COLOR_WHITE)
+            text_pos = ball.position - (Vec2(1,2) if len(ball.label) == 1 else Vec2(3,2))
+            pxl.text(*text_pos.u(), ball.label, pxl.COLOR_BLACK)
 
         #draw cue ball
         pxl.circ(*cue_ball.position.u(), cue_ball.radius, cue_ball.color)
