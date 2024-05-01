@@ -39,8 +39,8 @@ class GameState:
 SCREEN_WIDTH = 400
 SCREEN_HEIGHT = 270
 BILLIARD_COLORS: list[int] = [pxl.COLOR_YELLOW, pxl.COLOR_DARK_BLUE, pxl.COLOR_RED, pxl.COLOR_PURPLE, 
-                              pxl.COLOR_ORANGE, pxl.COLOR_GREEN, pxl.COLOR_LIGHT_BLUE, pxl.COLOR_BLACK,]
-
+                              pxl.COLOR_ORANGE, pxl.COLOR_LIME, pxl.COLOR_LIGHT_BLUE, pxl.COLOR_BLACK,]
+BILLIARD_ROWS: int = 1
 TABLE_FRICTION = 0.98
 RADIUS = 10.0
 CUE_START: Vec2 = Vec2(SCREEN_WIDTH//4, SCREEN_HEIGHT//2) 
@@ -58,11 +58,17 @@ class Game:
         pool_botright = Vec2(SCREEN_WIDTH, SCREEN_HEIGHT) - pool_topleft
 
         #automatically make ball starting positions
-        ball_starts: list[Vec2] = [CUE_START + Vec2(SCREEN_WIDTH//2,0)]
+        ball_starts: list[Vec2] = [CUE_START + Vec2(SCREEN_WIDTH//3,0)]
+        for balls_in_col in range(2,BILLIARD_ROWS + 1):
+            first_ball = ball_starts[0]
+            ball_x = first_ball.x + 2.5*RADIUS*(balls_in_col-1)
+            ball_y = first_ball.y - 1.25*RADIUS*(balls_in_col-1)
+            for idx in range(balls_in_col):
+                ball_starts.append(Vec2(ball_x, ball_y + 2.5*idx*RADIUS))
 
         billiard_balls: list[BilliardBall] = []
-        for ball_num in range(1):
-            ball: BilliardBall = BilliardBall(ball_starts[ball_num], Vec2(), TABLE_FRICTION, RADIUS, BILLIARD_COLORS[ball_num])
+        for num, ball_start in enumerate(ball_starts):
+            ball: BilliardBall = BilliardBall(ball_start, Vec2(), TABLE_FRICTION, RADIUS, BILLIARD_COLORS[num % 8])
             billiard_balls.append(ball)
 
         #self properties are initialized here
@@ -148,13 +154,14 @@ class Game:
         if not game_state.simulating:
             self.draw_stick(self.stick_power)
 
-        #draw cue ball
-        pxl.circ(*cue_ball.position.u(), cue_ball.radius, cue_ball.color)
-
         #draw billiard balls
         for ball in game_state.billiard_balls:
             pxl.circ(*ball.position.u(), ball.radius, ball.color )
 
+        #draw cue ball
+        pxl.circ(*cue_ball.position.u(), cue_ball.radius, cue_ball.color)
+
         
+
 
 Game()
