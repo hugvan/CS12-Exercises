@@ -1,6 +1,6 @@
 from geometry import Vec2
 import pyxel as pxl
-from pyxel import Tilemap
+from pyxel import Tilemap, Sound
 from dataclasses import dataclass
 from functools import cached_property
 
@@ -58,6 +58,7 @@ class Game:
         
         self.init_gamestate()
         pxl.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="Billiards")
+        pxl.load("BILLIARD_DATA.pyxres")
         pxl.run(self.update, self.draw)
 
     def init_gamestate(self):
@@ -131,6 +132,9 @@ class Game:
                     other_vx = (ball.mass/other_ball.mass)*(old_bv.x - ball.velocity.x) + other_ball.velocity.x
                     other_vy = (ball.mass/other_ball.mass)*(old_bv.y - ball.velocity.y) + other_ball.velocity.y
                     other_ball.velocity = Vec2(other_vx, other_vy) * 0.7
+
+                    power = abs(ball.velocity)
+                    pxl.play(0 if power < 1 else (1 if power < 4 else 2), 0)
 
 
             #Stop Physics if nothing is moving
