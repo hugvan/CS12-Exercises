@@ -86,6 +86,7 @@ class Game:
         SCREEN_WIDTH = 200
         SCREEN_HEIGHT = 200
         self.box = RotatableImage(Vec2(0,0),Vec2(15,15))
+        self.ball = RotatableImage(Vec2(0,48),Vec2(31,79))
         self.big_box = RotatableImage(Vec2(16,0),Vec2(47,47))
         
         pxl.init(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -98,6 +99,8 @@ class Game:
     def draw(self):
         pxl.cls(pxl.COLOR_LIME)
         self.big_box.rotate_draw(pxl.frame_count, Vec2(pxl.mouse_x, pxl.mouse_y))
+        self.box.rotate_draw(pxl.frame_count * 2.4, Vec2(30,30))
+        self.ball.rotate_draw(-pxl.frame_count, Vec2(70,70))
         #self.ball.rotate_draw(3*pi/2, Vec2(20, 20))
 
 Game()
