@@ -10,6 +10,10 @@ class Vec2:
     def u(self) -> tuple[float, float]:
         """Unpack x and y"""
         return (self.x, self.y)
+    
+    def ui(self) -> tuple[int, int]:
+        """Unpack x and y"""
+        return (int(self.x), int(self.y))
 
     def __add__(self, other:object) -> Vec2:
         if isinstance(other, Vec2):
