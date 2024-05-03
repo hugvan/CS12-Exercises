@@ -5,15 +5,18 @@ from functools import cached_property
 from dataclasses import dataclass
 from math import tan, sin, pi
 
-@dataclass(frozen=True)
+@dataclass
 class RotatableImage:
     """
     Create a reference to a specified area in Image_0, allows for rotated draw calls
-    IMPORTANT: Initialize ImageBank, Leave a border, Make sure Image_1 is empty
+    IMPORTANT: Initialize ImageBank, Leave at least 1x1 margin around image
     """
     top_left: Vec2
     bot_right: Vec2
-    tr_color: int 
+    tr_color: int
+
+    def __post_init__(self):
+        self.rotation_canvas = pxl.Image(*self.padded_rect.ui())
 
     @cached_property
     def width(self) -> float:
@@ -37,7 +40,7 @@ class RotatableImage:
         return self.padded_center - Vec2(self.width, self.height) * 0.5
 
     def rotate_draw(self, angle: float, center_pos: Vec2):
-        IMAGE_0,IMAGE_1 = 0, 1
+        IMAGE_0 = 0
         #check if at 90 to 270, rotates it 180
         mult = 1
         angle %= 360
@@ -51,23 +54,23 @@ class RotatableImage:
             for y in range(int(self.padded_rect.y)):
                 sx = (y - self.padded_center.y) * -tan(angle/2) 
                 sheared = Vec2(sx, y)
-                pxl.images[IMAGE_1].blt(*sheared.u(), IMAGE_1, 0, y, self.padded_rect.x, 1)
-                pxl.images[IMAGE_1].rect(0, y, sx, 1, self.tr_color)
-                pxl.images[IMAGE_1].rect(sx+self.padded_rect.x, y, self.padded_rect.x, 1, self.tr_color)
+                self.rotation_canvas.blt(*sheared.u(), self.rotation_canvas, 0, y, self.padded_rect.x, 1)
+                self.rotation_canvas.rect(0, y, sx, 1, self.tr_color)
+                self.rotation_canvas.rect(sx+self.padded_rect.x, y, self.padded_rect.x, 1, self.tr_color)
         
         def shear_y():
             for x in range(int(self.padded_rect.x)):
                 sy = (x - self.padded_center.x) * sin(angle)
                 sheared = Vec2(x, sy)
-                pxl.images[IMAGE_1].blt(*sheared.u(), IMAGE_1, x, 0, 1, self.padded_rect.y)
-                pxl.images[IMAGE_1].rect(x, 0, 1, sy, self.tr_color)
-                pxl.images[IMAGE_1].rect(x, sy+self.padded_rect.y, 1, self.padded_rect.y, self.tr_color)
+                self.rotation_canvas.blt(*sheared.u(), self.rotation_canvas, x, 0, 1, self.padded_rect.y)
+                self.rotation_canvas.rect(x, 0, 1, sy, self.tr_color)
+                self.rotation_canvas.rect(x, sy+self.padded_rect.y, 1, self.padded_rect.y, self.tr_color)
 
         #clear image_1 canvas
-        pxl.images[IMAGE_1].rect(*Vec2().u(), *self.padded_rect.u(), self.tr_color)
+        self.rotation_canvas.rect(*Vec2().u(), *self.padded_rect.u(), self.tr_color)
 
         #copy from image_0 to image_1, with padding
-        pxl.images[IMAGE_1].blt(*self.padded_topleft.u(),
+        self.rotation_canvas.blt(*self.padded_topleft.u(),
                                 IMAGE_0,
                                 *self.top_left.u(),
                                 self.width * mult,
@@ -83,7 +86,7 @@ class RotatableImage:
         #pxl.blt(*Vec2().u(), 1, *Vec2().u(), 200, 200, pxl.COLOR_BLACK)
         #pxl.rectb(*Vec2().u(), *self.padded_rect.u(), pxl.COLOR_BLACK)
         
-        pxl.blt(*(center_pos - self.padded_center).u(), 1, *Vec2().u(), *self.padded_rect.u(), self.tr_color)
+        pxl.blt(*(center_pos - self.padded_center).u(), self.rotation_canvas, *Vec2().u(), *self.padded_rect.u(), self.tr_color)
 
 class Game:
     def __init__(self) -> None:
