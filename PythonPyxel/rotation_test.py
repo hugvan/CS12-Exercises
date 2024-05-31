@@ -88,6 +88,8 @@ class RotatableImage:
         
         pxl.blt(*(center_pos - self.padded_center).u(), self.rotation_canvas, *Vec2().u(), *self.padded_rect.u(), self.tr_color)
 
+
+
 class Game:
     def __init__(self) -> None:
         SCREEN_WIDTH = 200
@@ -108,5 +110,3 @@ class Game:
         self.big_box.rotate_draw(pxl.frame_count, Vec2(pxl.mouse_x, pxl.mouse_y))
         self.box.rotate_draw(pxl.frame_count * 2.4, Vec2(30,30))
         self.ball.rotate_draw(pxl.frame_count * 10, Vec2(70,70))
-
-Game()
