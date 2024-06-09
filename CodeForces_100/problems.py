@@ -55,6 +55,73 @@ def p09():
     eights = cards.count("8")
     print(min(eights, length // 11))
 
-p09()
 
+# p10 - p12  do not exist?
+
+def p13():
+    from math import ceil
+
+    area = int(input())
+    for num in reversed(range(1, ceil(area ** 0.5) + 1)):
+        if area % num == 0:
+            print(2 * (num + area // num))
+            break
+
+def p14():
+    num = input()
+    count = len([n for n in num if n == "4" or n == "7"])
+    print("YES" if count == 4 or count == 7 else "NO")
+
+def p15():
+    num = int(input())
+    divisors = [4, 7, 47, 74, 447, 474, 477, 747, 774] #44, 77, 444, 777, 744
+
+    for lucky in divisors:
+        if num % lucky == 0:
+            print("YES")
+            return
+    print("NO")
+
+def p16(): # too easy, semiprimes
+    ...
+
+def p17():
+    from math import gcd
+    max_w, max_h, x, y = map(int, input().split())
+    c = gcd(x, y)
+    low_x, low_y = x // c, y // c
+    print(min(max_w // low_x, max_h // low_y))
+
+def p19():
+    length = int(input())
+    peaks = list(map(int, input().split()))
+    c_indexes: list[int] = []
+    for idx, peak in enumerate(peaks):
+        if idx == 0 or idx == length - 1:
+            continue
+        if peaks[idx - 1] < peak and peaks[idx + 1] < peak:
+            c_indexes.append(idx)
+    
+    if not c_indexes:
+        print("0")
+        return
+
+    for num in reversed(range(2, len(c_indexes))):
+        if length % num != 0:
+            #not divisible
+            continue
+        
+        day_length = length // num
+        last_box = 0
+        for c_idx in c_indexes:
+            box = c_idx // day_length
+            if box - last_box > 1:
+                #skipped a box
+                break
+            last_box = box
+        else:
+            print(num)
+            break
+    else:
+        print(1)
 
