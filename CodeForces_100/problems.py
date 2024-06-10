@@ -125,3 +125,15 @@ def p19():
     else:
         print(1)
 
+def p24():
+    ... #bubble sort
+
+def p25():
+    input()
+    seq = list(map(int, input().split()))
+    print(sorted(enumerate(seq), key=lambda tup: tup[1])[0][0])
+
+p25()
+
+def p26():
+    ... #selection sort
